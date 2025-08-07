@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Email Tạm Thời</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Roboto Mono', monospace;
+    }
+    body {
+      background: #0f0f0f;
+      color: #fff;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 26px;
+      margin-bottom: 10px;
+    }
+    .container {
+      max-width: 500px;
+      margin: auto;
+      background: #1a1a1a;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px #222;
+    }
+    .info-box {
+      margin-bottom: 20px;
+    }
+    .label {
+      font-size: 14px;
+      margin-bottom: 5px;
+      color: #ccc;
+    }
+    .field {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #2c2c2c;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .value {
+      word-break: break-all;
+    }
+    .btn {
+      background: #444;
+      border: none;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+    .btn:hover {
+      background: #666;
+    }
+    #qrCode {
+      display: none;
+      margin: 10px auto;
+      text-align: center;
+    }
+    #history {
+      max-height: 200px;
+      overflow-y: auto;
+      background: #111;
+      padding: 10px;
+      margin-top: 20px;
+      border-radius: 10px;
+    }
+    .history-item {
+      background: #222;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .controls {
+      text-align: center;
+      margin-top: 10px;
+    }
+    .controls .btn {
+      margin: 0 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Email Generator</h1>
+  <div class="container">
+    <div class="info-box">
+      <div class="label">📧 Email:</div>
+      <div class="field">
+        <span id="email" class="value"></span>
+        <button class="btn" onclick="copyToClipboard('email', this)">Chép</button>
+        <button class="btn" onclick="toggleQR()">QR</button>
+      </div>
+    </div>
+    <div class="info-box">
+      <div class="label">👤 Tài khoản:</div>
+      <div class="field">
+        <span id="username" class="value"></span>
+        <button class="btn" onclick="copyToClipboard('username', this)">Chép</button>
+      </div>
+    </div>
+    <div class="info-box">
+      <div class="label">🔐 Mật khẩu:</div>
+      <div class="field">
+        <span id="password" class="value"></span>
+        <button class="btn" onclick="copyToClipboard('password', this)">Chép</button>
+      </div>
+    </div>
+
+    <div id="qrCode"></div>
+
+    <div class="controls">
+      <button class="btn" onclick="generateAll()">Tạo mới</button>
+      <button class="btn" onclick="clearHistory()">🗑 Xoá lịch sử</button>
+    </div>
+
+    <div id="history"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <script>
+    const emailEl = document.getElementById('email');
+    const usernameEl = document.getElementById('username');
+    const passwordEl = document.getElementById('password');
+    const qrCodeContainer = document.getElementById('qrCode');
+    const historyEl = document.getElementById('history');
+
+    const emailDomains = ['@gmail.com', '@yahoo.com', '@outlook.com', '@mail.com', '@aol.com', '@protonmail.com', '@icloud.com', '@zoho.com', '@gmx.com', '@tutanota.com'];
+
+    function randomString(length = 8) {
+      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      return Array.from({length}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    }
+
+    function generateEmail() {
+      const name = randomString(6);
+      const domain = emailDomains[Math.floor(Math.random() * emailDomains.length)];
+      return name + domain;
+    }
+
+    function generateAll() {
+      const email = generateEmail();
+      const username = 'user_' + randomString(5);
+      const password = randomString(10);
+
+      emailEl.textContent = email;
+      usernameEl.textContent = username;
+      passwordEl.textContent = password;
+
+      generateQR(email);
+      saveToHistory(email, username, password);
+      loadHistory();
+    }
+
+    function generateQR(text) {
+      qrCodeContainer.innerHTML = '';
+      const qr = new QRious({
+        element: document.createElement('canvas'),
+        value: text,
+        size: 180,
+      });
+      qrCodeContainer.appendChild(qr.element);
+      qrCodeContainer.style.display = 'block';
+    }
+
+    function toggleQR() {
+      qrCodeContainer.style.display = qrCodeContainer.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function copyToClipboard(id, btn) {
+      const text = document.getElementById(id).textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const original = btn.textContent;
+        btn.textContent = 'Đã chép';
+        setTimeout(() => {
+          btn.textContent = original;
+        }, 2000);
+      });
+    }
+
+    function saveToHistory(email, username, password) {
+      const data = JSON.parse(localStorage.getItem('mailHistory') || '[]');
+      data.unshift({email, username, password, time: new Date().toLocaleString()});
+      localStorage.setItem('mailHistory', JSON.stringify(data));
+    }
+
+    function loadHistory() {
+      const data = JSON.parse(localStorage.getItem('mailHistory') || '[]');
+      historyEl.innerHTML = '';
+      data.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        div.innerHTML = `
+          <div><strong>${index + 1}.</strong> 📧 ${item.email}</div>
+          <div>👤 ${item.username}</div>
+          <div>🔐 ${item.password}</div>
+          <div style="color: #888; font-size: 11px;">🕒 ${item.time}</div>
+        `;
+        historyEl.appendChild(div);
+      });
+    }
+
+    function clearHistory() {
+      if (confirm('Xoá toàn bộ lịch sử?')) {
+        localStorage.removeItem('mailHistory');
+        loadHistory();
+      }
+    }
+
+    generateAll();
+    loadHistory();
+  </script>
+</body>
+</html>
